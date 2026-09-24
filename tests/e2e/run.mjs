@@ -198,7 +198,21 @@ await step('plays a video with subtitles, seeking and keyboard control', async (
   await page.mouse.move(700, 450)
   const bar = await page.getByTestId('seekbar').boundingBox()
   await page.mouse.move(bar.x + bar.width * 0.6, bar.y + bar.height / 2)
-  await sleep(900)
+  await page.mouse.move(bar.x + bar.width * 0.62, bar.y + bar.height / 2)
+  await waitFor(
+    () =>
+      page.evaluate(() => {
+        const c = document.querySelector('.seek-preview canvas')
+        if (!c || !c.width) return false
+        const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+        let lit = 0
+        for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 60) lit++
+        return lit > (d.length / 4) * 0.2
+      }),
+    'seek-bar hover preview shows a frame',
+    8000
+  )
+  await sleep(300)
   await shot('07-player')
   await page.keyboard.press('k')
   await waitFor(() => page.evaluate(() => document.querySelector('.player-video').paused), 'paused with K')

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { formatDuration, videoUrl } from '../lib/format'
+import { whenSeekable } from '../lib/media'
 
 interface Props {
   videoId: string
@@ -27,6 +28,7 @@ export function SeekBar({ videoId, current, duration, buffered, loopA, loopB, on
   const [drag, setDrag] = useState<number | null>(null)
   const pendingSeek = useRef<number | null>(null)
   const seeking = useRef(false)
+  const ready = useRef(false)
 
   const timeAt = (clientX: number) => {
     const r = bar.current!.getBoundingClientRect()
@@ -37,8 +39,9 @@ export function SeekBar({ videoId, current, duration, buffered, loopA, loopB, on
   // Throttled preview seeking: only one seek in flight, always converge on the latest target.
   const requestPreview = (t: number) => {
     const v = previewVideo.current
-    if (!v || !Number.isFinite(t)) return
-    if (seeking.current) {
+    if (!Number.isFinite(t)) return
+    // Not loaded (or not decoding) yet: remember the latest target and apply it once ready.
+    if (!v || !ready.current || seeking.current) {
       pendingSeek.current = t
       return
     }
@@ -49,6 +52,20 @@ export function SeekBar({ videoId, current, duration, buffered, loopA, loopB, on
   useEffect(() => {
     const v = previewVideo.current
     if (!v) return
+    ready.current = false
+    let alive = true
+    // Seeking a never-played element can scan the whole file (see whenSeekable), so let the
+    // preview decoder start, pause it, and only then serve preview seeks.
+    const onMeta = () =>
+      void whenSeekable(v).then(() => {
+        if (!alive) return
+        v.pause()
+        ready.current = true
+        const next = pendingSeek.current
+        pendingSeek.current = null
+        if (next !== null) requestPreview(next)
+      })
+    v.addEventListener('loadedmetadata', onMeta, { once: true })
     const onSeeked = () => {
       const c = canvas.current
       if (c && v.videoWidth) {
@@ -65,6 +82,8 @@ export function SeekBar({ videoId, current, duration, buffered, loopA, loopB, on
     }
     v.addEventListener('seeked', onSeeked)
     return () => {
+      alive = false
+      v.removeEventListener('loadedmetadata', onMeta)
       v.removeEventListener('seeked', onSeeked)
       seeking.current = false
       pendingSeek.current = null

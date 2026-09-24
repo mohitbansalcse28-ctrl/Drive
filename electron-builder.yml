@@ -1,0 +1,52 @@
+appId: com.lumina.videovault
+productName: Lumina
+copyright: Copyright © 2026 Mohit Bansal
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+extraResources:
+  - from: resources/icon.png
+    to: icon.png
+asar: true
+afterPack: scripts/after-pack.cjs
+compression: maximum
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  executableName: Lumina
+  artifactName: Lumina-Setup-${version}.${ext}
+  # Icon/version resources are written by scripts/after-pack.cjs (pure JS, no Wine needed).
+  # There is no code-signing certificate, so signing is skipped.
+  signAndEditExecutable: false
+  signDlls: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Lumina
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  installerSidebar: build/installerSidebar.bmp
+  uninstallerSidebar: build/uninstallerSidebar.bmp
+  license: LICENSE
+fileAssociations:
+  - ext: [mp4, m4v, mkv, webm, mov, avi, wmv, ogv, 3gp, m2ts, mpg, mpeg]
+    name: Video
+    description: Video file
+    role: Viewer
+    icon: build/icon.ico
+linux:
+  target: dir
+  icon: build/icon.png
+  category: AudioVideo

@@ -1,0 +1,40 @@
+{
+  "name": "lumina-video-vault",
+  "productName": "Lumina",
+  "version": "1.0.0",
+  "description": "Lumina — a beautiful video player and library manager for Windows",
+  "main": "out/main/index.js",
+  "author": "Mohit Bansal",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "dist:win": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "dist:linux": "npm run build && electron-builder --linux dir --publish never"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "framer-motion": "^11.18.2",
+    "lucide-react": "^1.48.0",
+    "pe-library": "^2.0.1",
+    "playwright-core": "^1.63.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "resedit": "^3.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9",
+    "zustand": "^4.5.7"
+  }
+}

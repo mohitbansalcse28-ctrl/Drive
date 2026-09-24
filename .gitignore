@@ -5,9 +5,8 @@ dist/
 .DS_Store
 tests/e2e/.tmp/
 tests/e2e/screenshots/
-release/*
-!release/*.exe
-!release/*.blockmap
-!release/latest.yml
-!release/README.md
+# Installer builds (npm run dist:win) are published on GitHub Releases, not committed.
+release/
+*.exe
+*.blockmap
 

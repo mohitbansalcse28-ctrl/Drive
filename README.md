@@ -9,10 +9,13 @@ A video player and library manager for Windows: folders become 3D cards, and a 1
 
 <br />
 
-<a href="release/Lumina-Setup-1.2.1.exe"><img alt="Download for Windows" src="https://img.shields.io/badge/Download_for_Windows-v1.2.1-8b97ff?style=for-the-badge&logo=windows&logoColor=white&labelColor=1a1d27" height="40" /></a>
+<a href="https://github.com/mohitbansal25082006/Lumina/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/badge/Download_for_Windows-latest-8b97ff?style=for-the-badge&logo=windows&logoColor=white&labelColor=1a1d27" height="40" /></a>
 
 <br /><br />
 
+<a href="https://github.com/mohitbansal25082006/Lumina/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/mohitbansal25082006/Lumina?style=flat-square&color=8b97ff&labelColor=0f1117&label=release" /></a>
+<a href="https://github.com/mohitbansal25082006/Lumina/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/mohitbansal25082006/Lumina/total?style=flat-square&color=3ccf91&labelColor=0f1117" /></a>
+<a href="https://github.com/mohitbansal25082006/Lumina/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/mohitbansal25082006/Lumina?style=flat-square&color=f5c451&labelColor=0f1117" /></a>
 <img alt="Windows 10/11" src="https://img.shields.io/badge/Windows-10_%7C_11-0f1117?style=flat-square&logo=windows&logoColor=8b97ff" />
 <img alt="Electron 33" src="https://img.shields.io/badge/Electron-33-0f1117?style=flat-square&logo=electron&logoColor=9feaf9" />
 <img alt="React 18" src="https://img.shields.io/badge/React-18-0f1117?style=flat-square&logo=react&logoColor=61dafb" />
@@ -252,7 +255,7 @@ Reproduce: [`tests/e2e/open-speed.mjs`](tests/e2e/open-speed.mjs) · [`tests/e2e
 
 ## 📦 Install
 
-1. Download **[Lumina-Setup-1.2.1.exe](release/Lumina-Setup-1.2.1.exe)** (Windows 10 / 11, 64-bit, ~80 MB).
+1. Download the latest **`Lumina-Setup-x.y.z.exe`** from **[Releases](https://github.com/mohitbansal25082006/Lumina/releases/latest)** (Windows 10 / 11, 64-bit, ~80 MB).
 2. Run it and pick an install folder. The progress bar moves steadily forward, driven by the real work done.
 3. Launch Lumina, click **Import folder**, and watch your folders turn into cards.
 
@@ -306,11 +309,13 @@ flowchart LR
 ## 🛠️ Build from source
 
 ```bash
+git clone https://github.com/mohitbansal25082006/Lumina.git
+cd Lumina
 npm install            # also applies the installer progress patch
 npm run dev            # run with hot reload
 npm run typecheck
 npm test               # unit tests: library, scanner, range protocol, subtitles
-npm run dist:win       # → release/Lumina-Setup-<version>.exe
+npm run dist:win       # → release/Lumina-Setup-<version>.exe (git-ignored; published via GitHub Releases)
 ```
 
 <details>
@@ -345,7 +350,7 @@ build/         icons, installer artwork, installer.nsh (smooth progress)
 scripts/       icon generator, exe stamping, NSIS patch, README asset pipeline
 tests/         unit, e2e, benchmarks, installer checks
 docs/          README artwork
-release/       the Windows installer
+release/       build output (git-ignored); installers ship via GitHub Releases
 ```
 
 </details>
@@ -357,6 +362,7 @@ release/       the Windows installer
 <img src="build/icon.png" width="44" alt="" />
 
 **Lumina** is released under the [MIT License](LICENSE).<br />
+<a href="https://github.com/mohitbansal25082006/Lumina/releases/latest">Download</a> · <a href="https://github.com/mohitbansal25082006/Lumina/issues">Report a bug</a> · <a href="https://github.com/mohitbansal25082006/Lumina/issues">Request a feature</a><br />
 <sub>Made with ♥ for beautiful libraries.</sub>
 
 </div>

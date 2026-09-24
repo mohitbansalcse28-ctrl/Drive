@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useRef } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import { api, useStore, collectionVideos } from './store'
 import { useThumbnailEngine } from './lib/thumbs'
 import { playVideos } from './lib/actions'
@@ -73,14 +73,21 @@ export default function App() {
     }
   }, [])
 
+  // Each page starts scrolled to the top.
+  const contentRef = useRef<HTMLElement>(null)
+  const routeKey = JSON.stringify(route)
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 })
+  }, [routeKey])
+
   // Accent variables live on :root so derived tokens like --grad pick them up too.
   const themeName = lib?.settings.theme ?? 'aurora'
   useEffect(() => {
     const t = THEMES[themeName] ?? THEMES.aurora
     const rs = document.documentElement.style
-    rs.setProperty('--accent-a', t.a)
-    rs.setProperty('--accent-b', t.b)
-    rs.setProperty('--accent-c', t.c)
+    rs.setProperty('--accent', t.accent)
+    rs.setProperty('--accent-2', t.accent2)
+    rs.setProperty('--on-accent', t.on)
   }, [themeName])
 
   if (!lib) {
@@ -95,32 +102,20 @@ export default function App() {
 
   return (
     <div className={`app ${lib.settings.reduceMotion ? 'reduce-motion' : ''}`}>
-      <div className="backdrop">
-        <span className="orb o1" />
-        <span className="orb o2" />
-        <span className="orb o3" />
-        <span className="grain" />
-      </div>
+      <div className="backdrop" />
       <TitleBar />
-      <div className="shell">
+      {/* While the player covers everything, skip rendering the library underneath. */}
+      <div className="shell" style={player ? { contentVisibility: 'hidden' } : undefined}>
         <Sidebar />
-        <main className="content" onMouseDown={(e) => e.target === e.currentTarget && useStore.getState().clearSelection()}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={key}
-              className="route"
-              initial={lib.settings.reduceMotion ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
-            >
+        <main ref={contentRef} className="content" onMouseDown={(e) => e.target === e.currentTarget && useStore.getState().clearSelection()}>
+          {/* Keyed so each page gets a short CSS entrance; no exit wait keeps navigation instant. */}
+          <div key={key} className="route">
               {route.name === 'home' && <HomeView />}
               {route.name === 'collections' && <CollectionsView />}
               {route.name === 'collection' && <CollectionView id={route.id} />}
               {(route.name === 'all' || route.name === 'favorites' || route.name === 'recent') && <VideosPage kind={route.name} />}
               {route.name === 'settings' && <SettingsView />}
-            </motion.div>
-          </AnimatePresence>
+          </div>
         </main>
       </div>
       <AnimatePresence>{player && <Player key="player" player={player} />}</AnimatePresence>

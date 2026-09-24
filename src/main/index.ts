@@ -27,6 +27,10 @@ protocol.registerSchemesAsPrivileged([
 if (process.env.LUMINA_USER_DATA) app.setPath('userData', process.env.LUMINA_USER_DATA)
 app.setAppUserModelId('com.lumina.videovault')
 
+// Smoother scrolling/animation: rasterize on the GPU and avoid extra texture copies.
+app.commandLine.appendSwitch('enable-gpu-rasterization')
+app.commandLine.appendSwitch('enable-zero-copy')
+
 const store = new LibraryStore(join(app.getPath('userData'), 'library.json'))
 let win: BrowserWindow | null = null
 let pendingOpen: string[] = []

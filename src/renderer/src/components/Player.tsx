@@ -179,14 +179,14 @@ export function Player({ player }: { player: PlayerState }) {
 
   useEffect(() => () => void audio.current?.ctx.close(), [])
 
-  // ---- ambient light: sample the frame into a tiny canvas that is blurred behind the video
+  // ---- ambient light: sample the frame into a 16x9 canvas; the GPU upscale softens it for free
   useEffect(() => {
     if (!settings.ambientMode) return
     let raf = 0
     let last = 0
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick)
-      if (now - last < 120) return
+      if (now - last < 160) return
       last = now
       const v = el.current
       const c = ambient.current
@@ -456,7 +456,7 @@ export function Player({ player }: { player: PlayerState }) {
       onMouseMove={poke}
       data-testid="player"
     >
-      {settings.ambientMode && <canvas ref={ambient} className="ambient" width={32} height={18} />}
+      {settings.ambientMode && <canvas ref={ambient} className="ambient" width={16} height={9} />}
       <video
         ref={el}
         className="player-video"

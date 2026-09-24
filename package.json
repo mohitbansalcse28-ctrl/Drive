@@ -1,7 +1,7 @@
 {
   "name": "lumina-video-vault",
   "productName": "Lumina",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Lumina — a beautiful video player and library manager for Windows",
   "main": "out/main/index.js",
   "author": "Mohit Bansal",

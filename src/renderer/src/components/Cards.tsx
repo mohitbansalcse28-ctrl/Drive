@@ -1,5 +1,4 @@
 import { memo, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
-import { motion } from 'framer-motion'
 import { AlertTriangle, Check, Heart, MoreHorizontal, Pin, Play } from 'lucide-react'
 import type { Collection, Video } from '@shared/types'
 import { api, collectionStats, previewVideos, useStore } from '../store'
@@ -27,7 +26,7 @@ export function Thumb({ video, className = '' }: { video: Video; className?: str
       }}
     >
       {src ? (
-        <img src={src} alt="" draggable={false} loading="lazy" />
+        <img src={src} alt="" draggable={false} loading="lazy" decoding="async" />
       ) : (
         <div className="thumb-placeholder">
           {video.missing ? <AlertTriangle size={22} /> : video.thumbFailed ? <Play size={22} /> : <span className="shimmer" />}
@@ -50,28 +49,37 @@ export const FolderCard = memo(function FolderCard({ collection, index }: { coll
   const previews = previewVideos(lib, collection, 3)
   const progress = stats.count ? stats.watched / stats.count : 0
 
+  // Tilt follows the pointer, batched to one style write per animation frame.
+  const frame = useRef(0)
+  const rect = useRef<DOMRect | null>(null)
   const onMove = (e: MouseEvent) => {
-    if (reduceMotion || !ref.current) return
-    const r = ref.current.getBoundingClientRect()
-    const x = (e.clientX - r.left) / r.width - 0.5
-    const y = (e.clientY - r.top) / r.height - 0.5
-    ref.current.style.setProperty('--rx', `${(-y * 10).toFixed(2)}deg`)
-    ref.current.style.setProperty('--ry', `${(x * 12).toFixed(2)}deg`)
-    ref.current.style.setProperty('--mx', `${((x + 0.5) * 100).toFixed(1)}%`)
-    ref.current.style.setProperty('--my', `${((y + 0.5) * 100).toFixed(1)}%`)
+    const el = ref.current
+    if (reduceMotion || !el) return
+    const { clientX, clientY } = e
+    if (frame.current) return
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0
+      const r = (rect.current ??= el.getBoundingClientRect())
+      const x = (clientX - r.left) / r.width - 0.5
+      const y = (clientY - r.top) / r.height - 0.5
+      el.style.setProperty('--rx', `${(-y * 9).toFixed(2)}deg`)
+      el.style.setProperty('--ry', `${(x * 11).toFixed(2)}deg`)
+      el.style.setProperty('--mx', `${((x + 0.5) * 100).toFixed(1)}%`)
+      el.style.setProperty('--my', `${((y + 0.5) * 100).toFixed(1)}%`)
+    })
   }
   const onLeave = () => {
+    cancelAnimationFrame(frame.current)
+    frame.current = 0
+    rect.current = null
     ref.current?.style.setProperty('--rx', '0deg')
     ref.current?.style.setProperty('--ry', '0deg')
   }
 
   return (
-    <motion.div
-      layout={!reduceMotion}
-      initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: Math.min(index * 0.035, 0.4), type: 'spring', stiffness: 260, damping: 24 }}
+    <div
       className="folder-wrap"
+      style={{ animationDelay: `${Math.min(index * 30, 240)}ms` }}
       data-testid="folder-card"
     >
       <div
@@ -95,7 +103,7 @@ export const FolderCard = memo(function FolderCard({ collection, index }: { coll
           {previews.length ? (
             previews.map((v, i) => (
               <div key={v.id} className={`paper paper-${i}`}>
-                <img src={thumbUrl(v.id, v.thumbAt)} alt="" draggable={false} />
+                <img src={thumbUrl(v.id, v.thumbAt)} alt="" draggable={false} decoding="async" />
               </div>
             ))
           ) : (
@@ -147,7 +155,7 @@ export const FolderCard = memo(function FolderCard({ collection, index }: { coll
           </button>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 })
 
@@ -173,22 +181,23 @@ function useRename(video: Video) {
 
 interface CardProps {
   video: Video
-  list: Video[]
+  /** Stable getter for the surrounding list, so cards don't re-render when the array changes. */
+  getList: () => Video[]
   index: number
   collection?: Collection
   onMenu: (e: MouseEvent, v: Video) => void
 }
 
-function useCardHandlers({ video, list, collection }: CardProps) {
+function useCardHandlers({ video, getList, collection }: CardProps) {
   const selected = useStore((s) => s.selection.has(video.id))
   const select = useStore((s) => s.select)
   const onClick = (e: MouseEvent) => {
-    const ordered = list.map((v) => v.id)
+    const ordered = getList().map((v) => v.id)
     if (e.shiftKey) select(video.id, 'range', ordered)
     else if (e.ctrlKey || e.metaKey) select(video.id, 'toggle')
     else select(video.id, 'single')
   }
-  const onDoubleClick = () => !video.missing && playVideos(list, video.id, collection?.name)
+  const onDoubleClick = () => !video.missing && playVideos(getList(), video.id, collection?.name)
   const onDragStart = (e: React.DragEvent) => {
     const sel = useStore.getState().selection
     const ids = sel.has(video.id) ? [...sel] : [video.id]
@@ -199,7 +208,7 @@ function useCardHandlers({ video, list, collection }: CardProps) {
 }
 
 export const VideoCard = memo(function VideoCard(props: CardProps) {
-  const { video, index, onMenu, list, collection } = props
+  const { video, index, onMenu, getList, collection } = props
   const { selected, onClick, onDoubleClick, onDragStart } = useCardHandlers(props)
   const { editing, ref, commit, setEditing } = useRename(video)
   const [preview, setPreview] = useState(false)
@@ -247,7 +256,7 @@ export const VideoCard = memo(function VideoCard(props: CardProps) {
           className="video-play"
           onClick={(e) => {
             e.stopPropagation()
-            playVideos(list, video.id, collection?.name)
+            playVideos(getList(), video.id, collection?.name)
           }}
           disabled={video.missing}
           aria-label="Play"
@@ -322,7 +331,7 @@ export const VideoCard = memo(function VideoCard(props: CardProps) {
 })
 
 export const VideoRow = memo(function VideoRow(props: CardProps) {
-  const { video, onMenu, list, collection } = props
+  const { video, onMenu, getList, collection } = props
   const { selected, onClick, onDoubleClick, onDragStart } = useCardHandlers(props)
   const { editing, ref, commit, setEditing } = useRename(video)
   const progress = video.duration && video.position ? video.position / video.duration : 0
@@ -342,7 +351,7 @@ export const VideoRow = memo(function VideoRow(props: CardProps) {
           className="row-play"
           onClick={(e) => {
             e.stopPropagation()
-            playVideos(list, video.id, collection?.name)
+            playVideos(getList(), video.id, collection?.name)
           }}
         >
           <Play size={14} fill="currentColor" />

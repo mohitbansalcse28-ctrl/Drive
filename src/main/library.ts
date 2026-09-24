@@ -42,6 +42,7 @@ function emptyLibrary(): Library {
 export class LibraryStore {
   lib: Library = emptyLibrary()
   private saveTimer: NodeJS.Timeout | null = null
+  private broadcastTimer: NodeJS.Timeout | null = null
   private listeners = new Set<(lib: Library) => void>()
 
   constructor(
@@ -82,9 +83,18 @@ export class LibraryStore {
     return () => this.listeners.delete(cb)
   }
 
-  /** Mark dirty; `broadcast` false is used for high-frequency updates like playback progress. */
-  private touch(broadcast = true): void {
-    if (broadcast) for (const l of this.listeners) l(this.lib)
+  /**
+   * Mark dirty and schedule a save. Broadcasts are coalesced: a burst of mutations (an import
+   * of hundreds of files, a run of thumbnails) sends the renderer a single snapshot.
+   * `broadcast` false is used for high-frequency updates like playback progress.
+   */
+  private touch(broadcast = true, broadcastDelay = 16): void {
+    if (broadcast && !this.broadcastTimer) {
+      this.broadcastTimer = setTimeout(() => {
+        this.broadcastTimer = null
+        for (const l of this.listeners) l(this.lib)
+      }, broadcastDelay)
+    }
     if (this.saveTimer) clearTimeout(this.saveTimer)
     this.saveTimer = setTimeout(() => void this.flush(), this.saveDelay)
   }
@@ -333,7 +343,7 @@ export class LibraryStore {
     } else if (p.failed) {
       v.thumbFailed = true
     }
-    this.touch()
+    this.touch(true, 250)
   }
 
   async resetThumbs(): Promise<void> {

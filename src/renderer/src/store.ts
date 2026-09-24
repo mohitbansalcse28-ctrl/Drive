@@ -78,6 +78,51 @@ interface State {
 }
 
 let toastSeq = 0
+
+function shallowEqual(a: object, b: object): boolean {
+  const ka = Object.keys(a)
+  if (ka.length !== Object.keys(b).length) return false
+  for (const k of ka) {
+    const x = (a as Record<string, unknown>)[k]
+    const y = (b as Record<string, unknown>)[k]
+    if (x === y) continue
+    if (Array.isArray(x) && Array.isArray(y) && x.length === y.length && x.every((v, i) => v === y[i])) continue
+    return false
+  }
+  return true
+}
+
+/**
+ * The main process sends a fresh copy of the library on every change. Reuse the previous
+ * objects wherever nothing changed so memoised components (cards, rows) skip re-rendering.
+ */
+function shareStructure(prev: Library | null, next: Library): Library {
+  if (!prev) return next
+  let videosChanged = Object.keys(prev.videos).length !== Object.keys(next.videos).length
+  const videos: Record<string, Video> = {}
+  for (const id in next.videos) {
+    const old = prev.videos[id]
+    if (old && shallowEqual(old, next.videos[id])) videos[id] = old
+    else {
+      videos[id] = next.videos[id]
+      videosChanged = true
+    }
+  }
+  const collections = next.collections.map((c) => {
+    const old = prev.collections.find((o) => o.id === c.id)
+    return old && shallowEqual(old, c) ? old : c
+  })
+  const collectionsChanged =
+    collections.length !== prev.collections.length || collections.some((c, i) => c !== prev.collections[i])
+  const settings = shallowEqual(prev.settings, next.settings) ? prev.settings : next.settings
+  if (!videosChanged && !collectionsChanged && settings === prev.settings) return prev
+  return {
+    ...next,
+    videos: videosChanged ? videos : prev.videos,
+    collections: collectionsChanged ? collections : prev.collections,
+    settings
+  }
+}
 let lastSelected: string | null = null
 
 function readPref<T>(key: string, fallback: T): T {
@@ -112,7 +157,7 @@ export const useStore = create<State>((set, get) => ({
   menu: null,
   palette: false,
 
-  setLib: (lib) => set({ lib }),
+  setLib: (lib) => set((s) => ({ lib: shareStructure(s.lib, lib) })),
   patchVideo: (id, patch) =>
     set((s) => {
       if (!s.lib?.videos[id]) return s

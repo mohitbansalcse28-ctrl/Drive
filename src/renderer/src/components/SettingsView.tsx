@@ -78,7 +78,7 @@ export function SettingsView() {
           <div className="theme-grid">
             {(Object.keys(THEMES) as ThemeName[]).map((t) => (
               <button key={t} className={`theme-chip ${s.theme === t ? 'on' : ''}`} onClick={() => set({ theme: t })} data-testid={`theme-${t}`}>
-                <span style={{ background: `linear-gradient(135deg, ${THEMES[t].a}, ${THEMES[t].c}, ${THEMES[t].b})` }} />
+                <span style={{ background: `linear-gradient(135deg, ${THEMES[t].accent}, ${THEMES[t].accent2})` }} />
                 {THEMES[t].label}
               </button>
             ))}
@@ -200,7 +200,7 @@ export function SettingsView() {
           </div>
         </Section>
       </div>
-      <p className="about">Lumina 1.0.0 · Made with ♥ for beautiful libraries</p>
+      <p className="about">Lumina 1.1.0 · Made with ♥ for beautiful libraries</p>
     </div>
   )
 }

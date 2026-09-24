@@ -171,8 +171,12 @@ describe('LibraryStore', () => {
     let calls = 0
     const off = store.onChange(() => calls++)
     store.createCollection({ name: 'x' })
+    store.createCollection({ name: 'x2' })
+    await new Promise((r) => setTimeout(r, 40))
+    expect(calls).toBe(1) // a burst is coalesced into one broadcast
     off()
     store.createCollection({ name: 'y' })
+    await new Promise((r) => setTimeout(r, 40))
     expect(calls).toBe(1)
   })
 })

@@ -1,4 +1,5 @@
-import { useMemo, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
+import { useCallback, useDeferredValue, useMemo, useRef, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { motion } from 'framer-motion'
 import {
   ArrowDownWideNarrow,
@@ -56,7 +57,19 @@ const SORTS: { key: SortKey; label: string }[] = [
 ]
 
 function Toolbar({ total, shown }: { total: number; shown: number }) {
-  const { search, setSearch, sort, sortDesc, setSort, viewMode, setViewMode, selection, clearSelection } = useStore()
+  const { search, setSearch, sort, sortDesc, setSort, viewMode, setViewMode, selectionSize, clearSelection } = useStore(
+    useShallow((s) => ({
+      search: s.search,
+      setSearch: s.setSearch,
+      sort: s.sort,
+      sortDesc: s.sortDesc,
+      setSort: s.setSort,
+      viewMode: s.viewMode,
+      setViewMode: s.setViewMode,
+      selectionSize: s.selection.size,
+      clearSelection: s.clearSelection
+    }))
+  )
   return (
     <div className="toolbar">
       <div className="filter-box">
@@ -74,9 +87,9 @@ function Toolbar({ total, shown }: { total: number; shown: number }) {
       </div>
       <span className="toolbar-count">
         {shown === total ? `${total} videos` : `${shown} of ${total}`}
-        {selection.size > 0 && (
+        {selectionSize > 0 && (
           <button className="chip" onClick={clearSelection}>
-            {selection.size} selected <X size={12} />
+            {selectionSize} selected <X size={12} />
           </button>
         )}
       </span>
@@ -112,18 +125,27 @@ function VideoBrowser({
   keepOrder?: boolean
   empty?: ReactNode
 }) {
-  const { search, sort, sortDesc, viewMode, openMenu, select, selection } = useStore()
+  const { search, sort, sortDesc, viewMode } = useStore(
+    useShallow((s) => ({ search: s.search, sort: s.sort, sortDesc: s.sortDesc, viewMode: s.viewMode }))
+  )
   const cardSize = useStore((s) => s.lib?.settings.cardSize ?? 240)
+  // Typing in the filter stays responsive on big libraries: the grid updates at lower priority.
+  const deferredSearch = useDeferredValue(search)
   const list = useMemo(() => {
-    const filtered = videos.filter((v) => matchesSearch(v, search))
+    const filtered = videos.filter((v) => matchesSearch(v, deferredSearch))
     return keepOrder ? filtered : sortVideos(filtered, sort, sortDesc)
-  }, [videos, search, sort, sortDesc, keepOrder])
+  }, [videos, deferredSearch, sort, sortDesc, keepOrder])
 
-  const onMenu = (e: MouseEvent, v: Video) => {
+  // Stable handler so memoised cards don't re-render when unrelated state changes.
+  const ctx = useRef({ list, collection })
+  ctx.current = { list, collection }
+  const onMenu = useCallback((e: MouseEvent, v: Video) => {
     e.preventDefault()
-    if (!selection.has(v.id)) select(v.id, 'single')
-    openMenu(e.clientX, e.clientY, videoMenu(v, { list, collection }))
-  }
+    const st = useStore.getState()
+    if (!st.selection.has(v.id)) st.select(v.id, 'single')
+    st.openMenu(e.clientX, e.clientY, videoMenu(v, ctx.current))
+  }, [])
+  const getList = useCallback(() => ctx.current.list, [])
 
   if (!videos.length) return <>{empty}</>
   return (
@@ -132,7 +154,7 @@ function VideoBrowser({
       {viewMode === 'grid' ? (
         <div className="video-grid" style={{ '--card': `${cardSize}px` } as CSSProperties}>
           {list.map((v, i) => (
-            <VideoCard key={v.id} video={v} list={list} index={i} collection={collection} onMenu={onMenu} />
+            <VideoCard key={v.id} video={v} getList={getList} index={i} collection={collection} onMenu={onMenu} />
           ))}
         </div>
       ) : (
@@ -147,7 +169,7 @@ function VideoBrowser({
             <span />
           </div>
           {list.map((v, i) => (
-            <VideoRow key={v.id} video={v} list={list} index={i} collection={collection} onMenu={onMenu} />
+            <VideoRow key={v.id} video={v} getList={getList} index={i} collection={collection} onMenu={onMenu} />
           ))}
         </div>
       )}

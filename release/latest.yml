@@ -1,8 +1,8 @@
-version: 1.0.0
+version: 1.1.0
 files:
-  - url: Lumina-Setup-1.0.0.exe
-    sha512: M9WrnbhGaKul4y3/BXiEGlM/H4y8wpRuA5vePDWjn70KwclBh5sNHbgoxEZ7hqIUypxYnYYs0qOc0wB9SxOMAg==
-    size: 82371401
-path: Lumina-Setup-1.0.0.exe
-sha512: M9WrnbhGaKul4y3/BXiEGlM/H4y8wpRuA5vePDWjn70KwclBh5sNHbgoxEZ7hqIUypxYnYYs0qOc0wB9SxOMAg==
-releaseDate: '2026-09-24T08:45:58.347Z'
+  - url: Lumina-Setup-1.1.0.exe
+    sha512: DCiGhXPHFNm1xhT71rIohYBwTH2slI7T6w7D5pyCX2wZfM02DkJOa4P7nGWxFlub1HrF3/FS/4Xzj0DylLu9mQ==
+    size: 82078971
+path: Lumina-Setup-1.1.0.exe
+sha512: DCiGhXPHFNm1xhT71rIohYBwTH2slI7T6w7D5pyCX2wZfM02DkJOa4P7nGWxFlub1HrF3/FS/4Xzj0DylLu9mQ==
+releaseDate: '2026-09-24T09:58:29.403Z'

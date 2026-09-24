@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { api, useStore } from '../store'
 import { videoUrl } from './format'
 
-const THUMB_WIDTH = 640
+const THUMB_WIDTH = 560
 const TIMEOUT_MS = 15000
 
 /** Load a video off-screen, seek to a representative frame and capture it as a JPEG. */
@@ -47,32 +47,59 @@ export function captureFrame(
   })
 }
 
-/** Background worker: generates missing thumbnails one at a time without blocking the UI. */
+const CONCURRENCY = 2
+const SCROLL_QUIET_MS = 450
+
+// Thumbnail decoding yields to the user: new work waits until scrolling has settled.
+let lastScroll = 0
+window.addEventListener('scroll', () => (lastScroll = performance.now()), { capture: true, passive: true })
+window.addEventListener('wheel', () => (lastScroll = performance.now()), { capture: true, passive: true })
+
+/**
+ * Background worker pool: generates missing thumbnails a couple at a time. It pauses while
+ * the player is open so playback never competes with decoding.
+ */
 export function useThumbnailEngine(): void {
   const lib = useStore((s) => s.lib)
-  const busy = useRef(false)
-  const attempted = useRef(new Set<string>())
+  const playing = useStore((s) => !!s.player)
+  const pool = useRef({ active: 0, waiting: false, attempted: new Set<string>() })
 
   useEffect(() => {
-    if (!lib || busy.current) return
-    const next = Object.values(lib.videos).find(
-      (v) => !v.thumbAt && !v.thumbFailed && !v.missing && !attempted.current.has(v.id)
-    )
-    if (!next) return
-    busy.current = true
-    attempted.current.add(next.id)
-    captureFrame(next.id, lib.settings.thumbnailAt)
-      .then((r) => api.saveThumb({ videoId: next.id, ...r, failed: !r.dataUrl }))
-      .catch(() => api.saveThumb({ videoId: next.id, failed: true }))
-      .finally(() => {
-        busy.current = false
-        // Nudge the effect even if the library broadcast was coalesced.
-        useStore.setState((s) => ({ lib: s.lib ? { ...s.lib } : s.lib }))
-      })
-  }, [lib])
+    if (!lib || playing) return
+    const st = pool.current
+    // After "Rebuild thumbnails" everything is cleared: allow retrying all videos.
+    if (st.active === 0 && Object.values(lib.videos).every((v) => !v.thumbAt && !v.thumbFailed)) st.attempted.clear()
 
-  // A library reset (thumbs cleared) should allow retrying everything.
-  useEffect(() => {
-    if (lib && Object.values(lib.videos).every((v) => !v.thumbAt && !v.thumbFailed)) attempted.current.clear()
-  }, [lib])
+    const pump = () => {
+      const cur = useStore.getState()
+      if (!cur.lib || cur.player) return
+      const sinceScroll = performance.now() - lastScroll
+      if (sinceScroll < SCROLL_QUIET_MS) {
+        if (!st.waiting) {
+          st.waiting = true
+          setTimeout(() => {
+            st.waiting = false
+            pump()
+          }, SCROLL_QUIET_MS - sinceScroll)
+        }
+        return
+      }
+      while (st.active < CONCURRENCY) {
+        const next = Object.values(cur.lib.videos).find(
+          (v) => !v.thumbAt && !v.thumbFailed && !v.missing && !st.attempted.has(v.id)
+        )
+        if (!next) return
+        st.attempted.add(next.id)
+        st.active++
+        captureFrame(next.id, cur.lib.settings.thumbnailAt)
+          .then((r) => api.saveThumb({ videoId: next.id, ...r, failed: !r.dataUrl }))
+          .catch(() => api.saveThumb({ videoId: next.id, failed: true }))
+          .finally(() => {
+            st.active--
+            pump()
+          })
+      }
+    }
+    pump()
+  }, [lib, playing])
 }

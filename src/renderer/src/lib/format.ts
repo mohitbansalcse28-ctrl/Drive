@@ -43,26 +43,28 @@ export function resolutionLabel(h?: number): string | null {
   return `${h}p`
 }
 
+/** [primary, deep, light] — muted, harmonious tones that sit well on the dark UI. */
 export const COLLECTION_GRADIENTS: Record<CollectionColor, [string, string, string]> = {
-  violet: ['#8b5cf6', '#6d28d9', '#c4b5fd'],
-  blue: ['#3b82f6', '#1d4ed8', '#93c5fd'],
-  cyan: ['#06b6d4', '#0e7490', '#67e8f9'],
-  emerald: ['#10b981', '#047857', '#6ee7b7'],
-  lime: ['#84cc16', '#4d7c0f', '#bef264'],
-  amber: ['#f59e0b', '#b45309', '#fcd34d'],
-  orange: ['#f97316', '#c2410c', '#fdba74'],
-  rose: ['#f43f5e', '#be123c', '#fda4af'],
-  pink: ['#ec4899', '#be185d', '#f9a8d4'],
-  slate: ['#64748b', '#334155', '#cbd5e1']
+  violet: ['#9384f7', '#5a49c2', '#cfc6ff'],
+  blue: ['#6395f2', '#2f5fbf', '#bcd2ff'],
+  cyan: ['#3cc2d6', '#157c8f', '#b0eef7'],
+  emerald: ['#3fc795', '#17805c', '#b2f0d6'],
+  lime: ['#a3c95a', '#5f8422', '#e0f0b4'],
+  amber: ['#ebb04a', '#a86c14', '#fbe3ad'],
+  orange: ['#f08756', '#b24b1f', '#ffcdb4'],
+  rose: ['#ea6b83', '#a8304b', '#ffc6d0'],
+  pink: ['#dc7bbf', '#9c3b82', '#f8cbea'],
+  slate: ['#94a0b4', '#505a6d', '#d9dfe9']
 }
 
-export const THEMES: Record<ThemeName, { label: string; a: string; b: string; c: string }> = {
-  aurora: { label: 'Aurora', a: '#8b5cf6', b: '#22d3ee', c: '#f472b6' },
-  sunset: { label: 'Sunset', a: '#f97316', b: '#f43f5e', c: '#facc15' },
-  ocean: { label: 'Ocean', a: '#3b82f6', b: '#06b6d4', c: '#818cf8' },
-  emerald: { label: 'Emerald', a: '#10b981', b: '#84cc16', c: '#22d3ee' },
-  rose: { label: 'Rosé', a: '#ec4899', b: '#a855f7', c: '#fb7185' },
-  mono: { label: 'Graphite', a: '#e5e7eb', b: '#9ca3af', c: '#f5f5f5' }
+/** Each theme is a single accent (+ an analogous partner for subtle gradients) and the text colour used on it. */
+export const THEMES: Record<ThemeName, { label: string; accent: string; accent2: string; on: string }> = {
+  aurora: { label: 'Indigo', accent: '#8b97ff', accent2: '#b69cff', on: '#0c0f24' },
+  sunset: { label: 'Sunset', accent: '#ff9061', accent2: '#ffc15e', on: '#241006' },
+  ocean: { label: 'Ocean', accent: '#4cc3f7', accent2: '#6fe0e8', on: '#04151f' },
+  emerald: { label: 'Emerald', accent: '#43d3a0', accent2: '#a6e36a', on: '#04170f' },
+  rose: { label: 'Rosé', accent: '#f47fb7', accent2: '#c79bff', on: '#240616' },
+  mono: { label: 'Graphite', accent: '#e4e7ee', accent2: '#aab2c2', on: '#0d0f14' }
 }
 
 export const thumbUrl = (id: string, at?: number) => (at ? `lumina://thumb/${id}?v=${at}` : undefined)

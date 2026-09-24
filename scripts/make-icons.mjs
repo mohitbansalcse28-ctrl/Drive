@@ -2,9 +2,9 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { deflateSync } from 'node:zlib'
 
-const A = [139, 92, 246] // violet
-const C = [244, 114, 182] // pink
-const B = [34, 211, 238] // cyan
+const A = [79, 88, 232] // indigo
+const C = [112, 118, 250] // accent
+const B = [146, 106, 240] // lavender
 
 const lerp = (a, b, t) => a + (b - a) * t
 const mix = (x, y, t) => x.map((v, i) => lerp(v, y[i], t))
@@ -52,7 +52,7 @@ function renderIcon(size) {
           let col = grad(t)
           // soft top highlight + bottom shade
           const hy = (py - pad) / s
-          col = mix(col, [255, 255, 255], Math.max(0, 0.22 - hy * 0.5))
+          col = mix(col, [255, 255, 255], Math.max(0, 0.14 - hy * 0.4))
           col = mix(col, [20, 10, 40], Math.max(0, (hy - 0.6) * 0.35))
           if (inTriangle(px, py, tri)) col = [255, 255, 255]
           acc = [acc[0] + col[0], acc[1] + col[1], acc[2] + col[2], acc[3] + 1]
@@ -154,12 +154,12 @@ function sidebar(w, h) {
   const ly = 70
   return bmp(w, h, (x, y) => {
     const t = y / h
-    let col = mix([18, 12, 34], [8, 8, 14], t)
+    let col = mix([16, 17, 26], [9, 10, 14], t)
     // aurora glows
     const g1 = Math.exp(-(((x - w * 0.2) / 90) ** 2 + ((y - h * 0.15) / 110) ** 2))
     const g2 = Math.exp(-(((x - w * 0.9) / 80) ** 2 + ((y - h * 0.75) / 120) ** 2))
-    col = mix(col, A, g1 * 0.65)
-    col = mix(col, B, g2 * 0.4)
+    col = mix(col, A, g1 * 0.45)
+    col = mix(col, B, g2 * 0.25)
     if (x >= lx && x < lx + logoSize && y >= ly && y < ly + logoSize) {
       const i = ((y - ly) * logoSize + (x - lx)) * 4
       col = mix(col, [logo[i], logo[i + 1], logo[i + 2]], logo[i + 3] / 255)

@@ -3,7 +3,7 @@
 Lumina turns folders of videos into **3D folder cards** you can browse, play and organize.
 It has a full-featured player with ambient lighting.
 
-**Download:** [`release/Lumina-Setup-1.0.0.exe`](release/Lumina-Setup-1.0.0.exe). It's a Windows 10/11 x64 installer.
+**Download:** [`release/Lumina-Setup-1.1.0.exe`](release/Lumina-Setup-1.1.0.exe). It's a Windows 10/11 x64 installer.
 
 ![Home](docs/screenshots/home.png)
 
@@ -29,7 +29,7 @@ It has a full-featured player with ambient lighting.
 - **Multi-select** with Ctrl/Shift-click. Drag videos onto a sidebar collection to add them.
 - **Right-click menus** for every action, plus inline rename, ratings, tags and a details dialog.
 - **Command palette** (`Ctrl K`) searches every video and collection.
-- **Six themes:** Aurora, Sunset, Ocean, Emerald, Rosé and Graphite. There's also adjustable card size and a reduce-motion mode.
+- **Six themes:** Indigo, Sunset, Ocean, Emerald, Rosé and Graphite. Each is one accent color on a calm, neutral dark palette. There's also adjustable card size and a reduce-motion mode.
 
 ### Player
 - **Ambient mode:** the room glows with the colors of the current frame.
@@ -55,6 +55,25 @@ It has a full-featured player with ambient lighting.
 | `B` | A-B loop | `C` | Subtitles |
 | `S` | Snapshot | `A` | Aspect mode |
 | `I` | Stats overlay | `Ctrl K` | Search |
+
+## Performance
+Lumina is built to stay smooth with large libraries:
+- **Cheap rendering.** There are no animated blur filters, and no backdrop-blur over scrolling or playing content. Animations only touch `transform` and `opacity`. The player's ambient glow is a 16×9 canvas that the GPU upscales, so it costs almost nothing.
+- **Fewer re-renders.**
+  - Library updates reuse unchanged objects, so only the cards that actually changed re-render.
+  - Components subscribe only to the state they use.
+  - Filtering uses a deferred value, so typing stays responsive.
+- **Off-screen cards are skipped.** They use `content-visibility: auto`, and the library isn't rendered at all while the player is open.
+- **Batched updates.** The main process sends one update to the UI per burst of changes (an import, a run of thumbnails) instead of one per file.
+- **Background work yields to you.** Thumbnails generate two at a time, pause during playback, and wait while you're scrolling.
+
+`tests/e2e/perf.mjs` is a stress benchmark: it imports 800 videos, renders the grid, navigates, and scrolls while thumbnails generate. Compared with 1.0.0 on the same machine, with no GPU:
+
+| | 1.0.0 | 1.1.0 |
+| --- | --- | --- |
+| Show 800-video grid | 1.4–2.7 s | ~0.35 s |
+| Average view switch | 325–440 ms | 155–185 ms |
+| Scrolling during thumbnail generation | 3–10 fps | 33–37 fps |
 
 ## Installer
 - NSIS installer with a custom sidebar image. It lets you choose the install directory and installs per-user, so no admin rights are needed.

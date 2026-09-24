@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { api, useStore } from '../store'
 import { videoUrl } from './format'
+import { whenSeekable } from './media'
 
 const THUMB_WIDTH = 560
 const TIMEOUT_MS = 15000
@@ -8,7 +9,8 @@ const TIMEOUT_MS = 15000
 /** Load a video off-screen, seek to a representative frame and capture it as a JPEG. */
 export function captureFrame(
   id: string,
-  at: number
+  at: number,
+  signal?: AbortSignal
 ): Promise<{ dataUrl?: string; duration?: number; width?: number; height?: number }> {
   return new Promise((resolve, reject) => {
     const video = document.createElement('video')
@@ -25,11 +27,16 @@ export function captureFrame(
       video.load()
     }
     const timer = setTimeout(() => done(() => reject(new Error('timeout'))), TIMEOUT_MS)
+    signal?.addEventListener('abort', () => done(() => reject(new Error('aborted'))))
 
     video.addEventListener('error', () => done(() => reject(new Error('unsupported'))))
-    video.addEventListener('loadedmetadata', () => {
+    video.addEventListener('loadedmetadata', async () => {
       const d = video.duration
       const target = Number.isFinite(d) && d > 0 ? Math.min(d * at, Math.max(d - 0.5, 0)) : 1
+      // Seek only once decoding has started, so large MKVs jump via their index instead of scanning.
+      await whenSeekable(video)
+      if (settled) return
+      video.pause()
       video.currentTime = target
     })
     video.addEventListener('seeked', () =>
@@ -62,7 +69,14 @@ window.addEventListener('wheel', () => (lastScroll = performance.now()), { captu
 export function useThumbnailEngine(): void {
   const lib = useStore((s) => s.lib)
   const playing = useStore((s) => !!s.player)
-  const pool = useRef({ active: 0, waiting: false, attempted: new Set<string>() })
+  const pool = useRef({ active: 0, waiting: false, attempted: new Set<string>(), inflight: new Set<AbortController>() })
+
+  // Opening a video should get the disk and decoder to itself: cancel in-flight captures.
+  useEffect(() => {
+    if (!playing) return
+    const st = pool.current
+    for (const c of st.inflight) c.abort()
+  }, [playing])
 
   useEffect(() => {
     if (!lib || playing) return
@@ -91,10 +105,17 @@ export function useThumbnailEngine(): void {
         if (!next) return
         st.attempted.add(next.id)
         st.active++
-        captureFrame(next.id, cur.lib.settings.thumbnailAt)
+        const ctrl = new AbortController()
+        st.inflight.add(ctrl)
+        captureFrame(next.id, cur.lib.settings.thumbnailAt, ctrl.signal)
           .then((r) => api.saveThumb({ videoId: next.id, ...r, failed: !r.dataUrl }))
-          .catch(() => api.saveThumb({ videoId: next.id, failed: true }))
+          .catch(() => {
+            // Cancelled for playback: allow a retry later instead of marking it failed.
+            if (ctrl.signal.aborted) st.attempted.delete(next.id)
+            else return api.saveThumb({ videoId: next.id, failed: true })
+          })
           .finally(() => {
+            st.inflight.delete(ctrl)
             st.active--
             pump()
           })

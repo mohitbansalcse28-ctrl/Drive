@@ -30,6 +30,7 @@ import type { SubtitleFile, Video } from '@shared/types'
 import { api, useStore } from '../store'
 import { formatDuration, resolutionLabel, thumbUrl, videoUrl } from '../lib/format'
 import { SeekBar } from './SeekBar'
+import { whenSeekable } from '../lib/media'
 
 const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3]
 type Fit = 'contain' | 'cover' | 'fill'
@@ -84,6 +85,17 @@ export function Player({ player }: { player: PlayerState }) {
   const [error, setError] = useState<string | null>(null)
   const [upNext, setUpNext] = useState<number | null>(null)
   const [resumed, setResumed] = useState<number | null>(null)
+  // Shown (thumbnail poster) from the moment the player opens until the first frame is on screen.
+  const [loading, setLoading] = useState(true)
+  const [buffering, setBuffering] = useState(false)
+  // Vertical videos get a plain black background instead of the ambient glow.
+  const [portrait, setPortrait] = useState(false)
+  // Seeks issued before decoding starts are parked here (see whenSeekable).
+  const primed = useRef(false)
+  const videoIdRef = useRef(video?.id)
+  videoIdRef.current = video?.id
+  const pendingSeek = useRef<number | null>(null)
+  const mutedRef = useRef(false)
   const [stats, setStats] = useState(false)
 
   const hasNext = player.index < player.queue.length - 1 || loop === 'all'
@@ -104,6 +116,8 @@ export function Player({ player }: { player: PlayerState }) {
   const saveProgress = useCallback(() => {
     const v = el.current
     if (!v || !video || !Number.isFinite(v.duration)) return
+    // Before the resume seek lands, currentTime is ~0: don't overwrite the saved position.
+    if (!primed.current || pendingSeek.current !== null) return
     const d = v.duration
     const t = v.currentTime
     void api.saveProgress(video.id, t, d)
@@ -122,6 +136,11 @@ export function Player({ player }: { player: PlayerState }) {
     setBuffered(0)
     setSubtitle(null)
     setResumed(null)
+    setLoading(true)
+    setBuffering(false)
+    setPortrait(!!video.width && !!video.height && video.height > video.width)
+    primed.current = false
+    pendingSeek.current = null
     void api.markPlayed(video.id)
     let cancelled = false
     void api.findSubtitle(video.id).then((s) => {
@@ -155,7 +174,9 @@ export function Player({ player }: { player: PlayerState }) {
     }
     v.volume = Math.min(1, volume)
     if (audio.current) audio.current.gain.gain.value = boosted ? volume : 1
-    v.muted = muted
+    mutedRef.current = muted
+    // While a resume seek is parked, the opening frames play silently behind the poster.
+    v.muted = muted || pendingSeek.current !== null
   }, [volume, muted])
 
   useEffect(() => {
@@ -181,16 +202,18 @@ export function Player({ player }: { player: PlayerState }) {
 
   // ---- ambient light: sample the frame into a 16x9 canvas; the GPU upscale softens it for free
   useEffect(() => {
-    if (!settings.ambientMode) return
+    if (!settings.ambientMode || portrait) return
     let raf = 0
     let last = 0
+    let drawnAt = -1
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick)
       if (now - last < 160) return
       last = now
       const v = el.current
       const c = ambient.current
-      if (!v || !c || v.readyState < 2) return
+      if (!v || !c || v.readyState < 2 || v.currentTime === drawnAt) return
+      drawnAt = v.currentTime
       try {
         c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height)
       } catch {
@@ -199,7 +222,7 @@ export function Player({ player }: { player: PlayerState }) {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [settings.ambientMode, video?.id])
+  }, [settings.ambientMode, portrait, video?.id])
 
   // ---- fullscreen tracking
   useEffect(() => {
@@ -242,8 +265,15 @@ export function Player({ player }: { player: PlayerState }) {
   const seekTo = useCallback((t: number) => {
     const v = el.current
     if (!v || !Number.isFinite(v.duration)) return
-    v.currentTime = Math.max(0, Math.min(t, v.duration - 0.05))
-    setCurrent(v.currentTime)
+    const target = Math.max(0, Math.min(t, v.duration - 0.05))
+    if (!primed.current) {
+      // Too early to seek efficiently; apply as soon as decoding has started.
+      pendingSeek.current = target
+      setCurrent(target)
+      return
+    }
+    v.currentTime = target
+    setCurrent(target)
   }, [])
 
   const seekBy = useCallback(
@@ -441,7 +471,7 @@ export function Player({ player }: { player: PlayerState }) {
   })
 
   if (!video) return null
-  const res = resolutionLabel(video.height)
+  const res = resolutionLabel(video.height, video.width)
   const VolIcon = muted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2
   const nextVideo = lib.videos[player.queue[(player.index + 1) % player.queue.length]]
 
@@ -449,14 +479,16 @@ export function Player({ player }: { player: PlayerState }) {
     <motion.div
       ref={root}
       className={`player ${showUi || !playing || panel ? 'ui' : 'idle'}`}
-      initial={{ opacity: 0, scale: 1.02 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 1.02 }}
-      transition={{ duration: 0.25 }}
+      // No fade-in: the <video> must be visible from its first frame. While an element is
+      // transparent Chromium treats it as hidden and disables the video track, which makes
+      // seeks in files like MKV fall back to scanning the whole file.
+      initial={false}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
       onMouseMove={poke}
       data-testid="player"
     >
-      {settings.ambientMode && <canvas ref={ambient} className="ambient" width={16} height={9} />}
+      {settings.ambientMode && !portrait && <canvas ref={ambient} className="ambient" width={16} height={9} />}
       <video
         ref={el}
         className="player-video"
@@ -474,16 +506,39 @@ export function Player({ player }: { player: PlayerState }) {
         }}
         onLoadedMetadata={(e) => {
           const v = e.currentTarget
+          const id = video.id
           setDuration(v.duration)
+          setPortrait(v.videoHeight > v.videoWidth)
           v.playbackRate = speed
           if (settings.resumePlayback && video.position > 5 && video.position < v.duration - 10) {
-            v.currentTime = video.position
+            pendingSeek.current = video.position
+            v.muted = true
             setResumed(video.position)
             window.setTimeout(() => setResumed(null), 6000)
           }
+          // Let decoding start, then perform any parked seek: instant even for huge files
+          // whose seek index sits at the end (a seek before this would scan the whole file).
+          void whenSeekable(v).then(() => {
+            if (el.current !== v || videoIdRef.current !== id) return
+            primed.current = true
+            const to = pendingSeek.current
+            pendingSeek.current = null
+            const reveal = () => {
+              v.muted = mutedRef.current
+              setLoading(false)
+            }
+            if (to === null) return reveal()
+            v.addEventListener('seeked', reveal, { once: true })
+            v.currentTime = to
+            setCurrent(to)
+          })
         }}
+        onWaiting={() => setBuffering(true)}
+        onPlaying={() => setBuffering(false)}
+        onSeeked={() => setBuffering(false)}
         onTimeUpdate={(e) => {
           const v = e.currentTarget
+          if (!primed.current) return
           if (!scrubbing) setCurrent(v.currentTime)
           if (loopA !== null && loopB !== null && v.currentTime >= loopB) v.currentTime = loopA
           if (v.buffered.length) setBuffered(v.buffered.end(v.buffered.length - 1))
@@ -499,10 +554,20 @@ export function Player({ player }: { player: PlayerState }) {
             void el.current?.play()
           } else if (settings.autoplayNext && hasNext) setUpNext(5)
         }}
-        onError={() => setError('This video format or codec is not supported by the built-in player.')}
+        onError={() => {
+          setLoading(false)
+          setError('This video format or codec is not supported by the built-in player.')
+        }}
       >
         {subtitle && <track key={subtitle.url} kind="subtitles" src={subtitle.url} label={subtitle.name} />}
       </video>
+
+      {(loading || buffering) && !error && (
+        <div className={`player-loading ${loading ? 'poster' : ''}`}>
+          {loading && video.thumbAt && <img src={thumbUrl(video.id, video.thumbAt)} alt="" style={{ objectFit: fit }} />}
+          <span className="spinner" />
+        </div>
+      )}
 
       {subsOn && cueText.length > 0 && (
         <div className="subtitles">

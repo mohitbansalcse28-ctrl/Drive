@@ -865,3 +865,14 @@ input[type='range']::-webkit-slider-thumb:hover { transform: scale(1.2); }
 @keyframes folder-in { from { opacity: 0; transform: translateY(14px) scale(0.97); } }
 /* aspect-ratio collapses inside a column-flex <button>; pin the shelf thumbnail height. */
 .mini-card .video-media { width: 100%; height: 141px; flex: none; }
+
+/* Loading: the thumbnail stands in for the first frame, so opening feels instant. */
+.player-loading { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; pointer-events: none; }
+.player-loading.poster { background: #000; }
+.player-loading img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.spinner {
+  position: relative; width: 44px; height: 44px; border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.18); border-top-color: #fff;
+  animation: spin 0.8s linear infinite, fadein 0.2s 0.35s both;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

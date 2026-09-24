@@ -200,7 +200,7 @@ export function SettingsView() {
           </div>
         </Section>
       </div>
-      <p className="about">Lumina 1.1.0 · Made with ♥ for beautiful libraries</p>
+      <p className="about">Lumina 1.2.0 · Made with ♥ for beautiful libraries</p>
     </div>
   )
 }

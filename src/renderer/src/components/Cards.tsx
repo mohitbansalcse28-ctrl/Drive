@@ -214,7 +214,9 @@ export const VideoCard = memo(function VideoCard(props: CardProps) {
   const [preview, setPreview] = useState(false)
   const hoverTimer = useRef<number>()
   const reduceMotion = useStore((s) => s.lib?.settings.reduceMotion)
-  const res = resolutionLabel(video.height)
+  // Never keep decoding a hover preview behind the player.
+  const playerOpen = useStore((s) => !!s.player)
+  const res = resolutionLabel(video.height, video.width)
   const progress = video.duration && video.position ? video.position / video.duration : 0
 
   return (
@@ -238,7 +240,7 @@ export const VideoCard = memo(function VideoCard(props: CardProps) {
     >
       <div className="video-media">
         <Thumb video={video} />
-        {preview && (
+        {preview && !playerOpen && (
           <video
             className="hover-preview"
             src={`${videoUrl(video.id)}`}
@@ -382,7 +384,7 @@ export const VideoRow = memo(function VideoRow(props: CardProps) {
         {video.watched && <Check size={14} className="row-watched" />}
       </div>
       <span className="row-cell">{formatDuration(video.duration)}</span>
-      <span className="row-cell">{resolutionLabel(video.height) ?? '—'}</span>
+      <span className="row-cell">{resolutionLabel(video.height, video.width) ?? '—'}</span>
       <span className="row-cell">{formatBytes(video.size)}</span>
       <span className="row-cell">{timeAgo(video.lastPlayedAt)}</span>
       <button

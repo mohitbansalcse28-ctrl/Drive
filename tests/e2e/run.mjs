@@ -294,6 +294,39 @@ await step('library is flushed to disk', async () => {
   assert(Object.keys(saved.videos).length === 7, 'saved videos')
 })
 
+await step('vertical videos play on plain black (no ambient glow)', async () => {
+  const vertical = join(tmp, 'extra/Vertical clip.mp4')
+  makeVideo(vertical, { size: '720x1280', seconds: 8, hue: 90 })
+  await page.evaluate((p) => window.lumina.importPaths([p], { splitSubfolders: false }), vertical)
+  await page.getByTestId('nav-all').click()
+  await page.getByTestId('filter-input').fill('vertical')
+  await sleep(600)
+  await page.getByTestId('video-card').first().dblclick()
+  await waitFor(() => page.evaluate(() => (document.querySelector('.player-video')?.currentTime ?? 0) > 0.5), 'vertical plays')
+  assert((await page.locator('.ambient').count()) === 0, 'no ambient canvas for vertical video')
+  await sleep(500)
+  await shot('14-vertical')
+  await page.getByTestId('player-close').click()
+  await page.getByTestId('player').waitFor({ state: 'detached' })
+  await page.getByTestId('filter-input').fill('')
+})
+
+await step('landscape videos keep ambient mode, and resume where they left off', async () => {
+  const before = Object.values((await lib()).videos).find((v) => v.name.includes('Lesson 02'))
+  await page.getByTestId('filter-input').fill('lesson 02')
+  await sleep(600)
+  await page.getByTestId('video-card').first().dblclick()
+  await waitFor(() => page.evaluate(() => (document.querySelector('.player-video')?.currentTime ?? 0) > 0), 'plays')
+  assert((await page.locator('.ambient').count()) === 1, 'ambient canvas for landscape video')
+  await waitFor(
+    () => page.evaluate((p) => Math.abs((document.querySelector('.player-video')?.currentTime ?? 0) - p) < 1.5, before.position),
+    `resumed near ${before.position}`
+  )
+  await page.getByTestId('player-close').click()
+  await page.getByTestId('player').waitFor({ state: 'detached' })
+  await page.getByTestId('filter-input').fill('')
+})
+
 await step('no uncaught renderer errors', async () => {
   const real = consoleErrors.filter((e) => !/corrupt|MEDIA_ERR|Format error|DEMUXER|NotSupportedError|net::ERR/i.test(e))
   assert(!real.length, real.join('\n'))

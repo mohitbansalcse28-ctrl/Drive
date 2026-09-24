@@ -34,7 +34,9 @@ export function timeAgo(ts?: number): string {
   return new Date(ts).toLocaleDateString()
 }
 
-export function resolutionLabel(h?: number): string | null {
+/** Quality label from the short side, so a 1080×1920 vertical video reads "1080p". */
+export function resolutionLabel(height?: number, width?: number): string | null {
+  const h = height && width ? Math.min(height, width) : height
   if (!h) return null
   if (h >= 2100) return '4K'
   if (h >= 1400) return '1440p'

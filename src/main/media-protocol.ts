@@ -44,7 +44,8 @@ export async function serveFile(path: string, rangeHeader: string | null): Promi
     return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } })
   }
   const { start, end } = range ?? { start: 0, end: size - 1 }
-  const stream = Readable.toWeb(createReadStream(path, { start, end })) as ReadableStream
+  // 1 MB reads keep the pipe full for high-bitrate video with far fewer round trips than the 64 KB default.
+  const stream = Readable.toWeb(createReadStream(path, { start, end, highWaterMark: 1 << 20 })) as ReadableStream
   const headers = {
     'Content-Type': type,
     'Content-Length': String(end - start + 1),

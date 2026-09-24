@@ -3,7 +3,7 @@
 Lumina turns folders of videos into **3D folder cards** you can browse, play and organize.
 It has a full-featured player with ambient lighting.
 
-**Download:** [`release/Lumina-Setup-1.1.0.exe`](release/Lumina-Setup-1.1.0.exe). It's a Windows 10/11 x64 installer.
+**Download:** [`release/Lumina-Setup-1.2.0.exe`](release/Lumina-Setup-1.2.0.exe). It's a Windows 10/11 x64 installer.
 
 ![Home](docs/screenshots/home.png)
 
@@ -75,10 +75,26 @@ Lumina is built to stay smooth with large libraries:
 | Average view switch | 325–440 ms | 155–185 ms |
 | Scrolling during thumbnail generation | 3–10 fps | 33–37 fps |
 
+### Opening big videos
+`tests/e2e/open-speed.mjs` opens a 1.5 GB, 20-minute 1080p video in two forms: an MP4 whose index is at the end (typical of cameras and phones) and an MKV. It measures the time from double-click to the first frame on screen:
+
+| | 1.1.0 | 1.2.0 |
+| --- | --- | --- |
+| Open (MP4 / MKV) | ~1.0 s / 0.36 s | 0.14 s / 0.11 s |
+| Jump to 14:00 (MP4 / MKV) | 2.2 s / 7.3 s | 0.38 s / 0.34 s |
+| Resume at 15:00 (MP4 / MKV) | 1.1 s / 7.6 s | 0.37 s / 0.41 s |
+
+How:
+- **Seeks wait for decoding to start.** Chromium can't use an index stored at the end of the file (MKV "Cues") until playback is running. An early seek, like resuming at 15:00, made it scan the whole file. The player and the thumbnail generator now let decoding start, then jump (`src/renderer/src/lib/media.ts`).
+- **Nothing else decodes while you watch.** Card hover previews and in-flight thumbnail work stop when the player opens. The seek bar's preview decoder only loads while you hover the bar.
+- **The thumbnail shows instantly** as a poster while the first frame loads.
+- **Bigger file reads.** The `lumina://` protocol reads 1 MB chunks.
+
 ## Installer
 - NSIS installer with a custom sidebar image. It lets you choose the install directory and installs per-user, so no admin rights are needed.
 - Creates **Desktop and Start Menu shortcuts** and an uninstaller entry.
 - **File associations** for mp4, mkv, webm, mov, avi, wmv and more. Opening a video from Explorer plays it in Lumina, reusing the running instance.
+- **Smooth install progress.** The stock electron-builder installer bar ran forward, jumped back, then ran forward again, because NSIS and the 7-Zip plugin both drive it. `build/installer.nsh` swaps in an identical bar driven by the actual bytes extracted, so it only moves forward. Fresh installs also extract straight into the install folder instead of copying from a temp folder. `scripts/patch-nsis.mjs` adds the hooks and runs automatically. `tests/installer/record.sh` and `progress.py` record the real installer under Wine and check the bar never goes backwards.
 - The library lives in `%APPDATA%\Lumina\library.json`. Writes are atomic, and a corrupt file is backed up rather than lost. Thumbnails are stored in `%APPDATA%\Lumina\thumbs`.
 
 ## Tech

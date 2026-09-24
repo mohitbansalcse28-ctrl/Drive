@@ -1,7 +1,7 @@
 {
   "name": "lumina-video-vault",
   "productName": "Lumina",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Lumina — a beautiful video player and library manager for Windows",
   "main": "out/main/index.js",
   "author": "Mohit Bansal",
@@ -14,8 +14,9 @@
     "test": "vitest run",
     "test:e2e": "node tests/e2e/run.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "dist:win": "npm run build && electron-builder --win nsis --x64 --publish never",
-    "dist:linux": "npm run build && electron-builder --linux dir --publish never"
+    "dist:win": "npm run build && node scripts/patch-nsis.mjs && electron-builder --win nsis --x64 --publish never",
+    "dist:linux": "npm run build && electron-builder --linux dir --publish never",
+    "postinstall": "node scripts/patch-nsis.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",

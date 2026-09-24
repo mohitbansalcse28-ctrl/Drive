@@ -18,6 +18,12 @@ export function SeekBar({ videoId, current, duration, buffered, loopA, loopB, on
   const previewVideo = useRef<HTMLVideoElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [hover, setHover] = useState<{ x: number; t: number } | null>(null)
+  // The preview decoder is created only while the pointer is on the bar, so it never
+  // competes with the main video while it opens, buffers or seeks.
+  const [armed, setArmed] = useState(false)
+  const disarmTimer = useRef<number>()
+  useEffect(() => setArmed(false), [videoId])
+  useEffect(() => () => clearTimeout(disarmTimer.current), [])
   const [drag, setDrag] = useState<number | null>(null)
   const pendingSeek = useRef<number | null>(null)
   const seeking = useRef(false)
@@ -58,8 +64,12 @@ export function SeekBar({ videoId, current, duration, buffered, loopA, loopB, on
       }
     }
     v.addEventListener('seeked', onSeeked)
-    return () => v.removeEventListener('seeked', onSeeked)
-  }, [videoId])
+    return () => {
+      v.removeEventListener('seeked', onSeeked)
+      seeking.current = false
+      pendingSeek.current = null
+    }
+  }, [videoId, armed])
 
   const onPointerDown = (e: PointerEvent) => {
     bar.current!.setPointerCapture(e.pointerId)
@@ -68,6 +78,8 @@ export function SeekBar({ videoId, current, duration, buffered, loopA, loopB, on
     onScrub(true)
   }
   const onPointerMove = (e: PointerEvent) => {
+    clearTimeout(disarmTimer.current)
+    if (!armed) setArmed(true)
     const h = timeAt(e.clientX)
     setHover(h)
     requestPreview(h.t)
@@ -91,10 +103,13 @@ export function SeekBar({ videoId, current, duration, buffered, loopA, loopB, on
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerLeave={() => drag === null && setHover(null)}
+      onPointerLeave={() => {
+        if (drag === null) setHover(null)
+        disarmTimer.current = window.setTimeout(() => setArmed(false), 4000)
+      }}
       data-testid="seekbar"
     >
-      <video ref={previewVideo} src={videoUrl(videoId)} muted preload="metadata" crossOrigin="anonymous" hidden />
+      {armed && <video ref={previewVideo} src={videoUrl(videoId)} muted preload="metadata" crossOrigin="anonymous" hidden />}
       <div className="seek-track">
         <div className="seek-buffered" style={{ width: pct(buffered) }} />
         {loopA !== null && (
